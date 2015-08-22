@@ -1,116 +1,69 @@
-#include <SoftwareSerial.h>
-SoftwareSerial mySerial(2, 3);                                                      //your pins to serial communication
-int valor;
-String token = "gsm";      //your token to post value
-#define trigPin A1
-#define echoPin A0
+#include <SPI.h>
+#include <SD.h>
+
+File myFile;
+String Mon = "8";
+String Day = "22";
+String Year="2015";
+String GPSTime = "10102010";
+int IR = 20;
 
 void setup()
 {
-  mySerial.begin(19200);                                                            //the GPRS baud rate
-  Serial.begin(19200);    
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-//  delay(1000);
+  Serial.begin(9600);
+  Serial.print("LOADING SD..");
+
+  if (!SD.begin(10)) {
+    Serial.println("SD FAILED!");
+    return;
+  }
+  Serial.println("Done LOADING.");
+
 }
-void loop()
-{
-  long duration, distance;
-  digitalWrite(trigPin, LOW);  // Added this line
-  delayMicroseconds(2); // Added this line
-  digitalWrite(trigPin, HIGH);
-//  delayMicroseconds(1000); - Removed this line
-  delayMicroseconds(10); // Added this line
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance = (duration/2) / 25.54;
-  if (distance >= 200 || distance <= 0){
-    Serial.println("Out of range");
+
+void loop(){
+    int fc = 0;
+    //to create a text File named Mon+Day+Year
+    String txtFile = String(Mon+Day+Year)+".txt"; 
+    
+    //to check if the file is existing
+    if (SD.exists(txtFile)) {
+      Serial.println("Exists.");
+    }
+    else {
+      Serial.println("Doesn't exist.");  
+      cache(fc);
+      fc++;
+    }
+    
+}
+void cache(int fcount){
+  //create a file that can uses the MonDayYear and add a Counts to make it unique
+  myFile = SD.open((Mon+Day+Year+fcount+".txt"), FILE_WRITE);
+  if (myFile) {
+    Serial.println(Year+Mon+Day+".txt");
+    while (myFile.available()) {
+            
+      String v;
+      int x;
+      int y = -1;
+      x =  myFile.read();
+      if (x == 32){
+           v = " ";
+      }else{
+         if ( x >= 48 && x <= 57 ){
+           y = x - 48;
+           v = String(y);
+         }
+      }
+      Serial.print(v);
+      //Serial.write(myFile.read());
+    }
+    myFile.close();
+  } else {
+    Serial.println("ERROR Opening");
   }
-  else {
-    Serial.print(distance);
-    Serial.println(" cm");
-  }
-  delay(500);
   
-    //int value = analogRead(A0);                                                     //read pin A0 from your arduino
-    save_value(String(distance));                                                      //call the save_value function
-    if (mySerial.available())
-    Serial.write(mySerial.read());
 }
-//this function is to send the sensor data to Ubidots, you should see the new value in Ubidots after executing this function
-void save_value(String value)
-{
-  int num;
-  String le;
-  String var;
-  var="{\"value\"unsure emoticon""+ value + "\"}";
-  num=var.length();
-  le=String(num);
-  for(int i = 0;i<1;i++)
-  {
-    mySerial.println("AT+CGATT?");                                                   //this is made repeatedly because it is unstable
-    delay(2000);
-    ShowSerialData();
-  }
-  mySerial.println("AT+CSTT=\"web.vmc.net.co\"");                                    //replace with your providers' APN
-  delay(1000);
-  ShowSerialData();
-  mySerial.println("AT+CIICR");                                                      //bring up wireless connection
-  delay(3000);
-  ShowSerialData();
-  mySerial.println("AT+CIFSR");                                                      //get local IP adress
-  delay(2000);
-  ShowSerialData();
-  mySerial.println("AT+CIPSPRT=0");
-  delay(3000);
-  ShowSerialData();
-  mySerial.println("AT+CIPSTART=\"tcp\",\"bukidutility.appspot.com\",\"80\"");             //start up the connection
-  delay(3000);
-  ShowSerialData();
-  mySerial.println("AT+CIPSEND");                                                    //begin send data to remote server
-  delay(3000);
-  ShowSerialData();
-  mySerial.print("POST /api/v1/farm/001");
-  delay(100);
-  ShowSerialData();
-  mySerial.println(" HTTP/1.1");
-  delay(100);
-  ShowSerialData();
-  mySerial.println("Content-Type: application/json");
-  delay(100);
-  ShowSerialData();
-  mySerial.println("Content-Length: "+le);
-  delay(100);
-  ShowSerialData();
-  mySerial.print("X-Farm-Token: ");
-  delay(100);
-  ShowSerialData();
-  mySerial.println(token);
-  delay(100);
-  ShowSerialData();
-  mySerial.println("Host: bukidutility.appspot.com");
-  delay(100);
-  ShowSerialData();
-  mySerial.println();
-  delay(100);
-  ShowSerialData();
-  mySerial.println(var);
-  delay(100);
-  ShowSerialData();
-  mySerial.println();
-  delay(100);
-  ShowSerialData();
-  mySerial.println((char)26);
-  delay(7000);
-  mySerial.println();
-  ShowSerialData();
-  mySerial.println("AT+CIPCLOSE");                                                //close the communication
-  delay(1000);
-  ShowSerialData();
-}
-void ShowSerialData()
-{
-  while(mySerial.available()!=0)
-  Serial.write(mySerial.read());
-}
+
+
